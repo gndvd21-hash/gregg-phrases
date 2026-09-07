@@ -3,839 +3,1428 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>Gregg Anniversary Phrase Dictionary</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
 <style>
-    * {
-        box-sizing: border-box;
-    }
 
-    body {
-        margin: 0;
-        padding: 0 18px 40px;
-        background: #f4f4f4;
-        font-family: Arial, Helvetica, sans-serif;
-        color: #222;
-    }
+* {
+    box-sizing: border-box;
+}
 
-    h1 {
-        text-align: center;
-        margin: 10px 0 12px;
-        font-size: 25px;
-    }
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f4f4f4;
+    color: #222;
+}
 
-    .search-row {
-        display: flex;
-        gap: 8px;
-        width: 100%;
-    }
+.container {
+    max-width: 1200px;
+    margin: auto;
+    padding: 10px;
+}
 
-    #searchInput {
-        flex: 1;
-        height: 36px;
-        padding: 6px 10px;
-        font-size: 16px;
-        border: 2px solid #222;
-        border-radius: 8px;
-        outline: none;
-    }
+h1 {
+    text-align: center;
+    margin: 0 0 15px 0;
+}
 
-    #searchButton {
-        width: 64px;
-        border: 1px solid #aaa;
-        border-radius: 6px;
-        background: white;
-        cursor: pointer;
-    }
+.search-row {
+    display: flex;
+    gap: 8px;
+}
 
-    #searchButton:hover {
-        background: #eee;
-    }
+#searchInput {
+    flex: 1;
+    height: 36px;
+    padding: 8px 10px;
+    font-size: 16px;
+    border: 1px solid #999;
+    border-radius: 7px;
+}
 
-    #status {
-        text-align: center;
-        margin: 12px 0;
-        color: #777;
-        min-height: 18px;
-        font-size: 14px;
-    }
+button {
+    width: 65px;
+    border: 1px solid #aaa;
+    border-radius: 7px;
+    background: white;
+    cursor: pointer;
+}
 
-    #results {
-        width: 100%;
-    }
+button:hover {
+    background: #eee;
+}
 
-    .result {
-        background: white;
-        border-radius: 8px;
-        padding: 14px;
-        margin-bottom: 18px;
-    }
+.status {
+    text-align: center;
+    color: #777;
+    margin: 10px 0;
+    min-height: 18px;
+}
 
-    .result-title {
-        font-weight: bold;
-        margin-bottom: 5px;
-    }
+.error {
+    color: #b00020;
+}
 
-    .result-page {
-        color: #777;
-        font-size: 13px;
-        margin-bottom: 10px;
-    }
+.result {
+    background: white;
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 10px;
+}
 
-    /*
-       IMPORTANT:
-       The result window is deliberately large enough to show
-       the shorthand at a useful size, while the PDF itself is
-       cropped around the detected phrase.
-    */
-    .shorthand-window {
-        width: 100%;
-        height: 250px;
-        overflow: hidden;
-        background: #e4e4e4;
-        position: relative;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
+.result-title {
+    font-weight: bold;
+    margin-bottom: 4px;
+}
 
-    .shorthand-window canvas {
-        position: absolute;
-        display: block;
-        max-width: none;
-    }
+.result-page {
+    font-size: 13px;
+    color: #777;
+    margin-bottom: 10px;
+}
 
-    .info {
-        margin-top: 12px;
-        font-size: 13px;
-        line-height: 1.45;
-    }
 
-    .info strong {
-        display: inline-block;
-        min-width: 65px;
-    }
+/*
+=========================================================
+GREGGDICT-STYLE DISPLAY
+=========================================================
+*/
 
-    .error {
-        color: #b00020;
-    }
+.gregg-box {
+
+    width: 365px;
+    height: 100px;
+
+    position: relative;
+
+    overflow: hidden;
+
+    border: 1px solid #000;
+
+    background: white;
+
+    margin: 0 auto;
+}
+
+.gregg-page {
+
+    position: absolute;
+
+    max-width: none;
+
+    height: auto;
+
+    visibility: hidden;
+}
+
+
+/*
+This is only used if the exact phrase cannot
+be isolated from the PDF.
+*/
+
+.debug-page {
+
+    width: 100%;
+
+    overflow: hidden;
+
+    background: #ddd;
+
+    text-align: center;
+}
+
+.debug-page canvas {
+
+    max-width: 100%;
+
+    height: auto;
+}
+
+
+.info {
+
+    margin-top: 10px;
+
+    font-size: 12px;
+
+    line-height: 1.4;
+}
+
 </style>
 </head>
 
 <body>
 
+<div class="container">
+
 <h1>Gregg Anniversary Phrase Dictionary</h1>
 
 <div class="search-row">
-    <input id="searchInput" type="text" value="i am" placeholder="Enter phrase...">
-    <button id="searchButton">Search</button>
+
+<input
+    id="searchInput"
+    type="text"
+    value="i am"
+    placeholder="Enter phrase..."
+>
+
+<button id="searchButton">
+    Search
+</button>
+
 </div>
 
-<div id="status">Loading phrase book...</div>
+<div id="status">
+    Loading Phrase Book...
+</div>
+
 <div id="results"></div>
+
+</div>
+
 
 <script>
 
-pdfjsLib.GlobalWorkerOptions.workerSrc =
-    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
-
-/* ============================================================
-   PHRASE BOOK
-   ============================================================ */
+/*
+=========================================================
+PDF SOURCE
+=========================================================
+*/
 
 const PDF_URL =
-    "https://greggshorthand.github.io/phrasebook.pdf";
+"https://greggshorthand.github.io/phrasebook.pdf";
+
+
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+"https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
 
 let pdf = null;
-let pageCache = {};
-let textCache = {};
 
 
-/* ============================================================
-   BASIC HELPERS
-   ============================================================ */
+/*
+Cache page text so repeated searches are fast.
+*/
 
-function normalizeText(text) {
+const pageTextCache = {};
+
+
+/*
+=========================================================
+NORMALIZE
+=========================================================
+*/
+
+function normalize(text) {
+
     return (text || "")
         .toLowerCase()
         .replace(/[“”"']/g, "")
         .replace(/[.,:;!?()[\]{}]/g, "")
         .replace(/\s+/g, " ")
         .trim();
+
 }
 
 
-function distance(a, b) {
-    return Math.sqrt(
-        Math.pow(a.x - b.x, 2) +
-        Math.pow(a.y - b.y, 2)
-    );
-}
-
-
-/* ============================================================
-   LOAD PDF
-   ============================================================ */
+/*
+=========================================================
+LOAD PDF
+=========================================================
+*/
 
 async function loadPDF() {
 
     try {
 
-        status.textContent = "Loading phrase book...";
+        pdf =
+            await pdfjsLib.getDocument({
+                url: PDF_URL
+            }).promise;
 
-        pdf = await pdfjsLib.getDocument({
-            url: PDF_URL
-        }).promise;
-
-        status.textContent =
-            "Phrase book loaded (" + pdf.numPages + " pages).";
-
-    } catch (err) {
-
-        console.error(err);
-
-        status.innerHTML =
-            '<span class="error">Unable to load the Phrase Book.</span>';
+        document.getElementById("status").textContent =
+            "Phrase Book loaded.";
 
     }
+
+    catch (error) {
+
+        console.error(error);
+
+        document.getElementById("status").innerHTML =
+            '<span class="error">' +
+            'Could not load Phrase Book.' +
+            '</span>';
+
+    }
+
 }
 
 
-/* ============================================================
-   GET PAGE TEXT
-   ============================================================ */
+/*
+=========================================================
+GET TEXT ITEMS
+=========================================================
+*/
 
-async function getPageText(pageNumber) {
+async function getPageItems(pageNumber) {
 
-    if (textCache[pageNumber]) {
-        return textCache[pageNumber];
+    if (pageTextCache[pageNumber]) {
+        return pageTextCache[pageNumber];
     }
 
-    const page = await pdf.getPage(pageNumber);
+    const page =
+        await pdf.getPage(pageNumber);
 
-    const content = await page.getTextContent();
+    const content =
+        await page.getTextContent();
+
 
     const items = content.items
-        .filter(x => x.str && x.str.trim())
-        .map(x => {
+        .filter(item =>
+            item.str &&
+            item.str.trim()
+        )
+        .map(item => {
 
-            const tx = x.transform;
+            const tx =
+                item.transform;
 
             return {
-                text: x.str,
-                norm: normalizeText(x.str),
+
+                text: item.str,
+
+                norm: normalize(item.str),
 
                 x: tx[4],
+
                 y: tx[5],
 
-                width: x.width || 0,
-                height: Math.abs(tx[3] || tx[0] || 10),
+                width:
+                    item.width || 0,
 
-                raw: x
+                height:
+                    Math.abs(tx[3] || tx[0] || 10)
+
             };
+
         });
 
-    textCache[pageNumber] = items;
+
+    pageTextCache[pageNumber] =
+        items;
 
     return items;
+
 }
 
 
-/* ============================================================
-   BUILD TEXT LINES
-   ============================================================ */
+/*
+=========================================================
+GROUP ITEMS INTO LINES
+=========================================================
+*/
 
-function buildLines(items) {
-
-    const sorted = [...items].sort((a, b) => {
-
-        if (Math.abs(a.y - b.y) < 6) {
-            return a.x - b.x;
-        }
-
-        return b.y - a.y;
-    });
+function makeLines(items) {
 
     const lines = [];
 
-    for (const item of sorted) {
 
-        let line = null;
+    for (const item of items) {
 
-        for (const candidate of lines) {
+        let found = null;
 
-            if (Math.abs(candidate.y - item.y) < 7) {
-                line = candidate;
-                break;
-            }
-        }
-
-        if (!line) {
-
-            line = {
-                y: item.y,
-                items: []
-            };
-
-            lines.push(line);
-        }
-
-        line.items.push(item);
-    }
-
-    for (const line of lines) {
-
-        line.items.sort((a, b) => a.x - b.x);
-
-        line.text = normalizeText(
-            line.items.map(x => x.text).join(" ")
-        );
-
-        line.x1 = Math.min(...line.items.map(x => x.x));
-        line.x2 = Math.max(
-            ...line.items.map(x => x.x + x.width)
-        );
-
-        line.y1 = Math.min(
-            ...line.items.map(x => x.y - x.height)
-        );
-
-        line.y2 = Math.max(
-            ...line.items.map(x => x.y)
-        );
-    }
-
-    return lines;
-}
-
-
-/* ============================================================
-   FIND PHRASE CANDIDATES
-   ============================================================ */
-
-async function findCandidates(phrase) {
-
-    const wanted = normalizeText(phrase);
-
-    const candidates = [];
-
-    /*
-       Search every page.
-    */
-
-    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
-
-        const items = await getPageText(pageNumber);
-        const lines = buildLines(items);
 
         for (const line of lines) {
 
-            if (!line.text.includes(wanted)) {
-                continue;
+            if (
+                Math.abs(
+                    line.y - item.y
+                ) < 5
+            ) {
+
+                found = line;
+
+                break;
+
             }
 
-            /*
-               Score the candidate.
-
-               Exact phrase match gets priority.
-               Shorter surrounding text gets priority.
-               Phrase-book pages tend to contain compact entries.
-            */
-
-            let score = 0;
-
-            if (line.text === wanted) {
-                score += 1000;
-            }
-
-            if (line.text.startsWith(wanted)) {
-                score += 300;
-            }
-
-            if (line.text.includes(" " + wanted + " ")) {
-                score += 200;
-            }
-
-            score -= Math.max(
-                0,
-                line.text.length - wanted.length
-            );
-
-            /*
-               The actual phrase book starts well after the
-               introductory material. Give phrase-book pages
-               a strong preference.
-            */
-
-            if (pageNumber >= 10) {
-                score += 250;
-            }
-
-            /*
-               Locate the actual phrase within the line.
-            */
-
-            const phraseIndex = line.text.indexOf(wanted);
-
-            const phraseItems = [];
-
-            let accumulated = "";
-
-            for (const item of line.items) {
-
-                const next = accumulated
-                    ? accumulated + " " + normalizeText(item.text)
-                    : normalizeText(item.text);
-
-                if (
-                    next.includes(wanted) ||
-                    accumulated.includes(wanted)
-                ) {
-                    phraseItems.push(item);
-                }
-
-                accumulated = next;
-            }
-
-            let x1 = line.x1;
-            let x2 = line.x2;
-
-            if (phraseItems.length) {
-
-                x1 = Math.min(
-                    ...phraseItems.map(x => x.x)
-                );
-
-                x2 = Math.max(
-                    ...phraseItems.map(
-                        x => x.x + x.width
-                    )
-                );
-            }
-
-            candidates.push({
-                page: pageNumber,
-                line,
-                phraseItems,
-                x1,
-                x2,
-                score
-            });
         }
+
+
+        if (!found) {
+
+            found = {
+
+                y: item.y,
+
+                items: []
+
+            };
+
+            lines.push(found);
+
+        }
+
+
+        found.items.push(item);
+
     }
 
-    candidates.sort((a, b) => b.score - a.score);
 
-    return candidates;
+    for (const line of lines) {
+
+        line.items.sort(
+            (a,b) => a.x - b.x
+        );
+
+
+        line.text =
+            normalize(
+                line.items
+                    .map(item => item.text)
+                    .join(" ")
+            );
+
+
+        line.x1 =
+            Math.min(
+                ...line.items.map(
+                    item => item.x
+                )
+            );
+
+
+        line.x2 =
+            Math.max(
+                ...line.items.map(
+                    item =>
+                        item.x + item.width
+                )
+            );
+
+
+        line.y1 =
+            Math.min(
+                ...line.items.map(
+                    item =>
+                        item.y - item.height
+                )
+            );
+
+
+        line.y2 =
+            Math.max(
+                ...line.items.map(
+                    item => item.y
+                )
+            );
+
+    }
+
+
+    return lines;
+
 }
 
 
-/* ============================================================
-   RENDER PAGE
-   ============================================================ */
+/*
+=========================================================
+FIND EXACT PHRASE
+=========================================================
 
-async function renderCrop(candidate) {
+IMPORTANT:
 
-    const page = await pdf.getPage(candidate.page);
+We don't simply accept the first occurrence.
+
+We prefer:
+
+1. exact line
+2. exact sequence of text items
+3. phrase-book pages
+4. shortest surrounding text
+
+This prevents:
+
+"I am"
+
+from automatically becoming:
+
+"I am advised"
+"I am afraid"
+etc.
+=========================================================
+*/
+
+async function findPhrase(phrase) {
+
+    const wanted =
+        normalize(phrase);
+
+    const candidates = [];
+
+
+    for (
+        let pageNumber = 1;
+        pageNumber <= pdf.numPages;
+        pageNumber++
+    ) {
+
+        const items =
+            await getPageItems(pageNumber);
+
+        const lines =
+            makeLines(items);
+
+
+        for (const line of lines) {
+
+            if (
+                !line.text.includes(wanted)
+            ) {
+                continue;
+            }
+
+
+            let score = 0;
+
+
+            /*
+            Exact line is strongest.
+            */
+
+            if (
+                line.text === wanted
+            ) {
+
+                score += 10000;
+
+            }
+
+
+            /*
+            Exact phrase at the beginning.
+            */
+
+            if (
+                line.text.startsWith(wanted)
+            ) {
+
+                score += 1000;
+
+            }
+
+
+            /*
+            Penalize long surrounding text.
+            */
+
+            score -=
+                (line.text.length -
+                wanted.length) * 10;
+
+
+            /*
+            Prefer actual phrase-book section.
+            */
+
+            if (
+                pageNumber >= 10
+            ) {
+
+                score += 500;
+
+            }
+
+
+            /*
+            Find which text items belong
+            to the requested phrase.
+            */
+
+            const matching =
+                findMatchingItems(
+                    line.items,
+                    wanted
+                );
+
+
+            if (
+                matching.length === 0
+            ) {
+                continue;
+            }
+
+
+            const phraseX1 =
+                Math.min(
+                    ...matching.map(
+                        item => item.x
+                    )
+                );
+
+
+            const phraseX2 =
+                Math.max(
+                    ...matching.map(
+                        item =>
+                            item.x +
+                            item.width
+                    )
+                );
+
+
+            const phraseY1 =
+                Math.min(
+                    ...matching.map(
+                        item =>
+                            item.y -
+                            item.height
+                    )
+                );
+
+
+            const phraseY2 =
+                Math.max(
+                    ...matching.map(
+                        item => item.y
+                    )
+                );
+
+
+            candidates.push({
+
+                page:
+                    pageNumber,
+
+                line,
+
+                matching,
+
+                x1:
+                    phraseX1,
+
+                x2:
+                    phraseX2,
+
+                y1:
+                    phraseY1,
+
+                y2:
+                    phraseY2,
+
+                score
+
+            });
+
+        }
+
+    }
+
+
+    candidates.sort(
+        (a,b) =>
+            b.score - a.score
+    );
+
+
+    return candidates[0] || null;
+
+}
+
+
+/*
+=========================================================
+MATCH TEXT ITEMS
+=========================================================
+*/
+
+function findMatchingItems(
+    items,
+    wanted
+) {
+
+    const targetWords =
+        wanted.split(" ");
+
 
     /*
-       Render at high resolution.
-       This is what gives us the "Greggdict-like" zoom.
+    First try individual text items.
     */
 
-    const scale = 3.0;
+    for (
+        let start = 0;
+        start < items.length;
+        start++
+    ) {
 
-    const viewport = page.getViewport({
-        scale: scale
-    });
+        let combined = "";
 
-    const fullCanvas = document.createElement("canvas");
+        const selected = [];
 
-    fullCanvas.width = Math.ceil(viewport.width);
-    fullCanvas.height = Math.ceil(viewport.height);
 
-    const fullContext = fullCanvas.getContext("2d");
+        for (
+            let i = start;
+            i < items.length;
+            i++
+        ) {
+
+            const text =
+                normalize(
+                    items[i].text
+                );
+
+
+            if (!text) {
+                continue;
+            }
+
+
+            combined =
+                combined
+                    ? combined + " " + text
+                    : text;
+
+
+            selected.push(
+                items[i]
+            );
+
+
+            if (
+                combined === wanted
+            ) {
+
+                return selected;
+
+            }
+
+
+            if (
+                combined.length >
+                wanted.length + 10
+            ) {
+
+                break;
+
+            }
+
+        }
+
+    }
+
+
+    /*
+    If PDF text extraction combines the
+    entire phrase into one item.
+    */
+
+    for (const item of items) {
+
+        if (
+            normalize(item.text) === wanted
+        ) {
+
+            return [item];
+
+        }
+
+    }
+
+
+    /*
+    Fallback:
+    locate the first item containing
+    the phrase.
+    */
+
+    const result = [];
+
+    for (const item of items) {
+
+        if (
+            normalize(item.text)
+                .includes(wanted)
+        ) {
+
+            result.push(item);
+
+            break;
+
+        }
+
+    }
+
+    return result;
+
+}
+
+
+/*
+=========================================================
+CREATE GREGG STYLE RESULT
+=========================================================
+*/
+
+async function createResultImage(
+    candidate
+) {
+
+    const page =
+        await pdf.getPage(
+            candidate.page
+        );
+
+
+    /*
+    Render the complete PDF page at
+    high resolution.
+
+    This is temporary.
+
+    We use the PDF coordinates to create
+    the same type of positioned image
+    that greggdict uses.
+    */
+
+    const scale = 3;
+
+    const viewport =
+        page.getViewport({
+            scale: scale
+        });
+
+
+    const canvas =
+        document.createElement(
+            "canvas"
+        );
+
+
+    canvas.width =
+        Math.ceil(viewport.width);
+
+    canvas.height =
+        Math.ceil(viewport.height);
+
+
+    const context =
+        canvas.getContext("2d");
+
 
     await page.render({
-        canvasContext: fullContext,
-        viewport: viewport
+
+        canvasContext:
+            context,
+
+        viewport:
+            viewport
+
     }).promise;
 
 
     /*
-       PDF coordinates have the origin at bottom-left.
-       Convert the detected text coordinates into
-       rendered-canvas coordinates.
+    -----------------------------------------------------
+    IMPORTANT COORDINATE CALCULATION
+    -----------------------------------------------------
+
+    Instead of guessing from the browser
+    position, convert the PDF coordinates
+    using PDF.js itself.
     */
 
-    const pdfHeight = viewport.height / scale;
+    const p1 =
+        viewport.convertToViewportPoint(
+            candidate.x1,
+            candidate.y2
+        );
 
-    const phrase = candidate.phraseItems.length
-        ? candidate.phraseItems
-        : candidate.line.items;
 
-    let textX1 = Math.min(
-        ...phrase.map(x => x.x)
-    );
+    const p2 =
+        viewport.convertToViewportPoint(
+            candidate.x2,
+            candidate.y1
+        );
 
-    let textX2 = Math.max(
-        ...phrase.map(x => x.x + x.width)
-    );
 
-    let textY1 = Math.min(
-        ...phrase.map(x => x.y - x.height)
-    );
+    const phraseLeft =
+        Math.min(
+            p1[0],
+            p2[0]
+        );
 
-    let textY2 = Math.max(
-        ...phrase.map(x => x.y)
-    );
+
+    const phraseRight =
+        Math.max(
+            p1[0],
+            p2[0]
+        );
+
+
+    const phraseTop =
+        Math.min(
+            p1[1],
+            p2[1]
+        );
+
+
+    const phraseBottom =
+        Math.max(
+            p1[1],
+            p2[1]
+        );
+
+
+    const phraseWidth =
+        phraseRight -
+        phraseLeft;
+
+
+    const phraseHeight =
+        phraseBottom -
+        phraseTop;
 
 
     /*
-       --------------------------------------------------------
-       DETERMINE WHERE THE SHORTHAND IS
-       --------------------------------------------------------
+    -----------------------------------------------------
+    FIND SHORTHAND REGION
+    -----------------------------------------------------
 
-       In the actual Phrase Book the shorthand is commonly
-       immediately LEFT of the English phrase.
+    Phrase Book entries normally have the
+    shorthand immediately to the LEFT of
+    the English phrase.
 
-       We therefore make the crop centered around that area,
-       rather than around the entire page.
+    We make a compact window around that area.
     */
 
-    const phraseWidth = Math.max(20, textX2 - textX1);
-    const phraseHeight = Math.max(15, textY2 - textY1);
+    let cropLeft =
+        phraseLeft -
+        Math.max(
+            180,
+            phraseWidth * 2.0
+        );
 
-    let cropX1;
-    let cropX2;
+
+    let cropRight =
+        phraseLeft +
+        Math.max(
+            30,
+            phraseWidth * 0.15
+        );
+
+
+    let cropTop =
+        phraseTop -
+        Math.max(
+            25,
+            phraseHeight
+        );
+
+
+    let cropBottom =
+        phraseBottom +
+        Math.max(
+            25,
+            phraseHeight
+        );
+
 
     /*
-       Primary Anniversary Phrase Book layout:
-       shorthand is to the LEFT of the English entry.
-    */
-
-    cropX2 = textX1 + phraseWidth * 0.15;
-    cropX1 = textX1 - Math.max(
-        65,
-        phraseWidth * 1.8
-    );
-
-    /*
-       Keep enough vertical space to include the outline.
-    */
-
-    let cropY1 = textY1 - Math.max(
-        18,
-        phraseHeight * 0.9
-    );
-
-    let cropY2 = textY2 + Math.max(
-        18,
-        phraseHeight * 0.9
-    );
-
-
-    /*
-       Special handling for very short phrases such as
-       "I am", "I can", "I shall", etc.
-
-       These are often presented in the introductory
-       phrasing charts where the shorthand is on the RIGHT.
-
-       If this is an early introductory page, use the
-       right-hand side instead.
+    For the introductory phrase charts,
+    the shorthand can be on the RIGHT.
     */
 
     if (
-        candidate.page <= 10 &&
-        phrase.length
+        candidate.page <= 10
     ) {
 
-        cropX1 = textX2 - 5;
-        cropX2 = textX2 + Math.max(
-            95,
-            phraseWidth * 3.0
-        );
+        cropLeft =
+            phraseRight -
+            10;
+
+        cropRight =
+            phraseRight +
+            Math.max(
+                150,
+                phraseWidth * 2.5
+            );
+
     }
 
 
     /*
-       Convert PDF coordinates to canvas coordinates.
+    Keep crop inside page.
     */
 
-    let sx = cropX1 * scale;
-    let sy = (pdfHeight - cropY2) * scale;
+    cropLeft =
+        Math.max(
+            0,
+            cropLeft
+        );
 
-    let sw = (cropX2 - cropX1) * scale;
-    let sh = (cropY2 - cropY1) * scale;
+    cropTop =
+        Math.max(
+            0,
+            cropTop
+        );
+
+    cropRight =
+        Math.min(
+            canvas.width,
+            cropRight
+        );
+
+    cropBottom =
+        Math.min(
+            canvas.height,
+            cropBottom
+        );
+
+
+    const cropWidth =
+        cropRight -
+        cropLeft;
+
+
+    const cropHeight =
+        cropBottom -
+        cropTop;
 
 
     /*
-       Safety limits.
+    -----------------------------------------------------
+    CREATE CROPPED CANVAS
+    -----------------------------------------------------
     */
 
-    sx = Math.max(0, Math.min(sx, fullCanvas.width - 1));
-    sy = Math.max(0, Math.min(sy, fullCanvas.height - 1));
-
-    sw = Math.min(
-        sw,
-        fullCanvas.width - sx
-    );
-
-    sh = Math.min(
-        sh,
-        fullCanvas.height - sy
-    );
+    const cropCanvas =
+        document.createElement(
+            "canvas"
+        );
 
 
-    /*
-       Crop.
-    */
+    cropCanvas.width =
+        Math.ceil(cropWidth);
 
-    const cropCanvas = document.createElement("canvas");
+    cropCanvas.height =
+        Math.ceil(cropHeight);
 
-    cropCanvas.width = Math.max(1, Math.ceil(sw));
-    cropCanvas.height = Math.max(1, Math.ceil(sh));
 
-    const cropContext = cropCanvas.getContext("2d");
+    const cropContext =
+        cropCanvas.getContext(
+            "2d"
+        );
+
 
     cropContext.drawImage(
-        fullCanvas,
-        sx,
-        sy,
-        sw,
-        sh,
+
+        canvas,
+
+        cropLeft,
+        cropTop,
+
+        cropWidth,
+        cropHeight,
+
         0,
         0,
-        cropCanvas.width,
-        cropCanvas.height
+
+        cropWidth,
+        cropHeight
+
     );
 
 
     /*
-       Display.
+    -----------------------------------------------------
+    GREGGDICT-STYLE DISPLAY BOX
+    -----------------------------------------------------
     */
 
-    const windowElement =
-        document.createElement("div");
+    const box =
+        document.createElement(
+            "div"
+        );
 
-    windowElement.className =
-        "shorthand-window";
+    box.className =
+        "gregg-box";
 
-    /*
-       Fit the crop into the result window while
-       keeping it enlarged.
-    */
 
-    const targetWidth =
-        windowElement.clientWidth || 700;
+    const image =
+        document.createElement(
+            "img"
+        );
 
-    const targetHeight = 220;
+    image.className =
+        "gregg-page";
 
-    const ratio = Math.min(
-        targetWidth / cropCanvas.width,
-        targetHeight / cropCanvas.height
+
+    image.src =
+        cropCanvas.toDataURL(
+            "image/png"
+        );
+
+
+    image.onload =
+        function() {
+
+            /*
+            Make the shorthand large,
+            like the dictionary result.
+
+            */
+
+            const targetWidth =
+                365;
+
+            const targetHeight =
+                100;
+
+
+            const sx =
+                targetWidth /
+                cropCanvas.width;
+
+
+            const sy =
+                targetHeight /
+                cropCanvas.height;
+
+
+            const displayScale =
+                Math.max(
+                    sx,
+                    sy
+                );
+
+
+            image.style.width =
+                Math.round(
+                    cropCanvas.width *
+                    displayScale
+                ) + "px";
+
+
+            image.style.height =
+                Math.round(
+                    cropCanvas.height *
+                    displayScale
+                ) + "px";
+
+
+            /*
+            Center the crop.
+            */
+
+            image.style.left =
+                Math.round(
+                    (targetWidth -
+                    cropCanvas.width *
+                    displayScale) / 2
+                ) + "px";
+
+
+            image.style.top =
+                Math.round(
+                    (targetHeight -
+                    cropCanvas.height *
+                    displayScale) / 2
+                ) + "px";
+
+
+            image.style.visibility =
+                "visible";
+
+        };
+
+
+    box.appendChild(
+        image
     );
-
-    /*
-       Do not make tiny crops tiny.
-       Minimum display enlargement.
-    */
-
-    const displayScale = Math.max(
-        ratio,
-        1.15
-    );
-
-    cropCanvas.style.width =
-        Math.round(cropCanvas.width * displayScale) + "px";
-
-    cropCanvas.style.height =
-        Math.round(cropCanvas.height * displayScale) + "px";
-
-    windowElement.appendChild(cropCanvas);
 
 
     return {
-        element: windowElement,
-        x: Math.round(textX1),
-        y: Math.round(textY1),
-        width: Math.round(phraseWidth),
-        height: Math.round(phraseHeight)
+
+        box,
+
+        x:
+            Math.round(candidate.x1),
+
+        y:
+            Math.round(candidate.y1),
+
+        width:
+            Math.round(
+                candidate.x2 -
+                candidate.x1
+            ),
+
+        height:
+            Math.round(
+                candidate.y2 -
+                candidate.y1
+            )
+
     };
+
 }
 
 
-/* ============================================================
-   SEARCH
-   ============================================================ */
+/*
+=========================================================
+SEARCH
+=========================================================
+*/
 
 async function searchPhrase() {
 
     const input =
-        document.getElementById("searchInput");
+        document.getElementById(
+            "searchInput"
+        );
+
 
     const status =
-        document.getElementById("status");
+        document.getElementById(
+            "status"
+        );
+
 
     const results =
-        document.getElementById("results");
+        document.getElementById(
+            "results"
+        );
+
 
     const phrase =
-        normalizeText(input.value);
+        normalize(
+            input.value
+        );
+
 
     results.innerHTML = "";
 
+
     if (!phrase) {
-        status.textContent = "Enter a phrase.";
+
+        status.textContent =
+            "Enter a phrase.";
+
         return;
+
     }
+
 
     if (!pdf) {
-        status.textContent = "Phrase book is still loading.";
+
+        status.textContent =
+            "Phrase Book is still loading.";
+
         return;
+
     }
 
+
     status.textContent =
-        "Searching the Phrase Book...";
+        "Searching...";
 
 
     try {
 
-        const candidates =
-            await findCandidates(phrase);
+        const candidate =
+            await findPhrase(
+                phrase
+            );
 
-        if (!candidates.length) {
+
+        if (!candidate) {
 
             status.textContent =
                 "Phrase not found.";
 
             return;
+
         }
 
 
-        /*
-           Show the best candidate first.
-        */
-
-        const candidate =
-            candidates[0];
-
-        status.textContent =
-            "Phrase found!";
-
-
         const result =
-            document.createElement("div");
+            document.createElement(
+                "div"
+            );
 
         result.className =
             "result";
 
 
         const title =
-            document.createElement("div");
+            document.createElement(
+                "div"
+            );
 
         title.className =
             "result-title";
 
         title.textContent =
-            "Found phrase: " + phrase;
+            "Found phrase: " +
+            phrase;
 
 
-        const pageInfo =
-            document.createElement("div");
+        const page =
+            document.createElement(
+                "div"
+            );
 
-        pageInfo.className =
+        page.className =
             "result-page";
 
-        pageInfo.textContent =
-            "PDF page " + candidate.page;
+        page.textContent =
+            "PDF page " +
+            candidate.page;
 
 
-        result.appendChild(title);
-        result.appendChild(pageInfo);
+        result.appendChild(
+            title
+        );
+
+        result.appendChild(
+            page
+        );
 
 
-        const crop =
-            await renderCrop(candidate);
+        const rendered =
+            await createResultImage(
+                candidate
+            );
 
-        result.appendChild(crop.element);
+
+        result.appendChild(
+            rendered.box
+        );
 
 
         const info =
-            document.createElement("div");
+            document.createElement(
+                "div"
+            );
 
         info.className =
             "info";
 
+
         info.innerHTML =
-            "<strong>Phrase:</strong> " +
+
+            "<b>Phrase:</b> " +
             phrase +
+
             "<br>" +
 
-            "<strong>Page:</strong> " +
+            "<b>Page:</b> " +
             candidate.page +
+
             "<br>" +
 
-            "<strong>X:</strong> " +
-            crop.x +
+            "<b>X:</b> " +
+            rendered.x +
+
             "<br>" +
 
-            "<strong>Y:</strong> " +
-            crop.y +
+            "<b>Y:</b> " +
+            rendered.y +
+
             "<br>" +
 
-            "<strong>Width:</strong> " +
-            crop.width +
+            "<b>Width:</b> " +
+            rendered.width +
+
             "<br>" +
 
-            "<strong>Height:</strong> " +
-            crop.height;
+            "<b>Height:</b> " +
+            rendered.height;
 
 
-        result.appendChild(info);
+        result.appendChild(
+            info
+        );
 
-        results.appendChild(result);
+
+        results.appendChild(
+            result
+        );
 
 
-    } catch (err) {
+        status.textContent =
+            "Phrase found!";
 
-        console.error(err);
+
+    }
+
+    catch (error) {
+
+        console.error(error);
 
         status.innerHTML =
             '<span class="error">' +
-            "Search error. Check the browser console." +
+            "Search error." +
             "</span>";
+
     }
+
 }
 
 
-/* ============================================================
-   EVENTS
-   ============================================================ */
+/*
+=========================================================
+BUTTON
+=========================================================
+*/
 
 document
-    .getElementById("searchButton")
-    .addEventListener("click", searchPhrase);
+    .getElementById(
+        "searchButton"
+    )
+    .addEventListener(
+        "click",
+        searchPhrase
+    );
 
+
+/*
+=========================================================
+ENTER KEY
+=========================================================
+*/
 
 document
-    .getElementById("searchInput")
-    .addEventListener("keydown", function(event) {
+    .getElementById(
+        "searchInput"
+    )
+    .addEventListener(
+        "keydown",
+        function(event) {
 
-        if (event.key === "Enter") {
-            searchPhrase();
+            if (
+                event.key === "Enter"
+            ) {
+
+                searchPhrase();
+
+            }
+
         }
+    );
 
-    });
 
-
-/* ============================================================
-   START
-   ============================================================ */
+/*
+=========================================================
+START
+=========================================================
+*/
 
 loadPDF();
 
