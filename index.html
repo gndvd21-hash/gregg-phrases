@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Gregg Anniversary Phrase Dictionary</title>
+
+<style>
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f4f4f4;
+    color: #222;
+}
+
+.container {
+    max-width: 1200px;
+    margin: auto;
+    padding: 25px;
+}
+
+h1 {
+    text-align: center;
+}
+
+.search-area {
+    display: flex;
+    gap: 10px;
+    margin: 20px 0;
+}
+
+input {
+    flex: 1;
+    padding: 14px;
+    font-size: 18px;
+    border: 1px solid #bbb;
+    border-radius: 10px;
+}
+
+button {
+    padding: 10px 20px;
+    border: 1px solid #aaa;
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+button:hover {
+    background: #eee;
+}
+
+.status {
+    text-align: center;
+    color: #777;
+    margin: 20px 0;
+}
+
+.result {
+    background: white;
+    border-radius: 10px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.result-title {
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.page-info {
+    color: #777;
+    margin-bottom: 15px;
+}
+
+.page-container {
+    position: relative;
+    width: 100%;
+    overflow: auto;
+    background: #ddd;
+    padding: 20px;
+}
+
+canvas {
+    display: block;
+    margin: auto;
+}
+
+.highlight {
+    position: absolute;
+    border: 3px solid red;
+    pointer-events: none;
+}
+
+.error {
+    color: #b00020;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>Gregg Anniversary Phrase Dictionary</h1>
+
+<div class="search-area">
+
+<input
+    id="phraseInput"
+    type="text"
+    placeholder="Type a phrase... Example: I am"
+/>
+
+<button id="searchBtn">
+    Search
+</button>
+
+</div>
+
+<div id="status" class="status">
+    Loading Anniversary Phrase Book...
+</div>
+
+<div id="result"></div>
+
+</div>
+
+
+<!-- PDF.js -->
+
+<script
+src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs"
+type="module">
+</script>
+
+
+<script type="module">
+
+import * as pdfjsLib from
+"https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs";
+
+
+/*
+=========================================================
+GREGG ANNIVERSARY PHRASE BOOK
+=========================================================
+*/
+
+const PDF_URL =
+"https://greggshorthand.github.io/phrasebook.pdf";
+
+
+/*
+=========================================================
+PDF.js WORKER
+=========================================================
+*/
+
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+"https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
+
+
+let pdf = null;
+
+
+/*
+=========================================================
+NORMALIZE TEXT
+=========================================================
+*/
+
+function normalizeText(text) {
+
+    return text
+        .toLowerCase()
+        .replace(/\s+/g, " ")
+        .trim();
+
+}
+
+
+/*
+=========================================================
+LOAD PDF
+=========================================================
+*/
+
+async function loadPDF() {
+
+    const status =
+        document.getElementById("status");
+
+    try {
+
+        const loadingTask =
+            pdfjsLib.getDocument(PDF_URL);
+
+        pdf =
+            await loadingTask.promise;
+
+
+        status.textContent =
+            "Phrase Book loaded. Type a phrase to search.";
+
+
+        console.log(
+            "Phrase Book pages:",
+            pdf.numPages
+        );
+
+    }
+
+    catch(error) {
+
+        console.error(error);
+
+        status.textContent =
+            "Could not load Phrase Book.";
+
+        status.className =
+            "status error";
+
+    }
+
+}
+
+
+/*
+=========================================================
+SEARCH PDF
+=========================================================
+*/
+
+async function searchPhrase() {
+
+    const input =
+        document.getElementById(
+            "phraseInput"
+        );
+
+
+    const result =
+        document.getElementById(
+            "result"
+        );
+
+
+    const status =
+        document.getElementById(
+            "status"
+        );
+
+
+    const phrase =
+        normalizeText(
+            input.value
+        );
+
+
+    if (!phrase) {
+
+        status.textContent =
+            "Type a phrase first.";
+
+        return;
+
+    }
+
+
+    if (!pdf) {
+
+        status.textContent =
+            "Phrase Book is still loading.";
+
+        return;
+
+    }
+
+
+    status.textContent =
+        "Searching Phrase Book...";
+
+
+    result.innerHTML = "";
+
+
+    /*
+    =====================================================
+    SEARCH EVERY PAGE
+    =====================================================
+    */
+
+    for (
+        let pageNumber = 1;
+        pageNumber <= pdf.numPages;
+        pageNumber++
+    ) {
+
+        const page =
+            await pdf.getPage(
+                pageNumber
+            );
+
+
+        const textContent =
+            await page.getTextContent();
+
+
+        /*
+        Combine all PDF text items.
+        */
+
+        const pageText =
+            textContent.items
+                .map(item => item.str)
+                .join(" ");
+
+
+        const normalizedPageText =
+            normalizeText(
+                pageText
+            );
+
+
+        /*
+        Exact phrase search.
+        */
+
+        if (
+            normalizedPageText.includes(
+                phrase
+            )
+        ) {
+
+            status.textContent =
+                "Phrase found!";
+
+
+            await displayPage(
+                page,
+                pageNumber,
+                phrase,
+                textContent
+            );
+
+
+            return;
+
+        }
+
+    }
+
+
+    status.textContent =
+        "Phrase was not found in the Phrase Book.";
+
+}
+
+
+/*
+=========================================================
+DISPLAY MATCHING PAGE
+=========================================================
+*/
+
+async function displayPage(
+    page,
+    pageNumber,
+    phrase,
+    textContent
+) {
+
+    const result =
+        document.getElementById(
+            "result"
+        );
+
+
+    result.innerHTML = "";
+
+
+    const resultBox =
+        document.createElement("div");
+
+    resultBox.className =
+        "result";
+
+
+    const title =
+        document.createElement("div");
+
+    title.className =
+        "result-title";
+
+    title.textContent =
+        "Found phrase: " + phrase;
+
+
+    const pageInfo =
+        document.createElement("div");
+
+    pageInfo.className =
+        "page-info";
+
+    pageInfo.textContent =
+        "PDF page " + pageNumber;
+
+
+    const pageContainer =
+        document.createElement("div");
+
+    pageContainer.className =
+        "page-container";
+
+
+    const canvas =
+        document.createElement("canvas");
+
+
+    pageContainer.appendChild(
+        canvas
+    );
+
+
+    resultBox.appendChild(
+        title
+    );
+
+    resultBox.appendChild(
+        pageInfo
+    );
+
+    resultBox.appendChild(
+        pageContainer
+    );
+
+
+    result.appendChild(
+        resultBox
+    );
+
+
+    /*
+    =====================================================
+    RENDER PAGE
+    =====================================================
+    */
+
+    const viewport =
+        page.getViewport({
+            scale: 1.5
+        });
+
+
+    canvas.width =
+        viewport.width;
+
+    canvas.height =
+        viewport.height;
+
+
+    const context =
+        canvas.getContext(
+            "2d"
+        );
+
+
+    await page.render({
+
+        canvasContext:
+            context,
+
+        viewport:
+            viewport
+
+    }).promise;
+
+
+    /*
+    =====================================================
+    FIND EXACT TEXT COORDINATES
+    =====================================================
+
+    This is the important part.
+
+    We inspect every text item and determine
+    where the phrase occurs on the actual page.
+    */
+
+    findPhraseCoordinates(
+        textContent,
+        phrase,
+        viewport,
+        pageContainer
+    );
+
+}
+
+
+/*
+=========================================================
+FIND PHRASE COORDINATES
+=========================================================
+*/
+
+function findPhraseCoordinates(
+    textContent,
+    phrase,
+    viewport,
+    pageContainer
+) {
+
+    const items =
+        textContent.items;
+
+
+    const targetWords =
+        phrase.split(/\s+/);
+
+
+    /*
+    Search consecutive PDF text items.
+    */
+
+    for (
+        let i = 0;
+        i < items.length;
+        i++
+    ) {
+
+        let combined =
+            "";
+
+
+        let matchedItems =
+            [];
+
+
+        for (
+            let j = i;
+            j < items.length &&
+            matchedItems.length <= targetWords.length + 3;
+            j++
+        ) {
+
+            const text =
+                normalizeText(
+                    items[j].str
+                );
+
+
+            if (!text) {
+                continue;
+            }
+
+
+            combined =
+                normalizeText(
+                    combined + " " + text
+                );
+
+
+            matchedItems.push(
+                items[j]
+            );
+
+
+            if (
+                combined.includes(
+                    phrase
+                )
+            ) {
+
+                /*
+                =========================================
+                MATCH FOUND
+                =========================================
+                */
+
+                const coordinates =
+                    calculateBoundingBox(
+                        matchedItems,
+                        viewport
+                    );
+
+
+                console.log(
+                    "PHRASE:",
+                    phrase
+                );
+
+                console.log(
+                    "PAGE:",
+                    viewport
+                );
+
+                console.log(
+                    "COORDINATES:",
+                    coordinates
+                );
+
+
+                drawHighlight(
+                    coordinates,
+                    pageContainer
+                );
+
+
+                /*
+                Show useful information.
+                */
+
+                const info =
+                    document.createElement(
+                        "div"
+                    );
+
+                info.style.marginTop =
+                    "15px";
+
+                info.style.padding =
+                    "10px";
+
+                info.style.background =
+                    "#fff";
+
+                info.innerHTML =
+
+                    "<b>Phrase:</b> " +
+                    phrase +
+
+                    "<br><b>Page:</b> " +
+                    viewport.pageNumber +
+
+                    "<br><b>X:</b> " +
+                    coordinates.x +
+
+                    "<br><b>Y:</b> " +
+                    coordinates.y +
+
+                    "<br><b>Width:</b> " +
+                    coordinates.width +
+
+                    "<br><b>Height:</b> " +
+                    coordinates.height;
+
+
+                pageContainer.parentElement
+                    .appendChild(info);
+
+
+                return coordinates;
+
+            }
+
+        }
+
+    }
+
+
+    console.log(
+        "Could not determine exact coordinates."
+    );
+
+}
+
+
+/*
+=========================================================
+CALCULATE BOUNDING BOX
+=========================================================
+*/
+
+function calculateBoundingBox(
+    items,
+    viewport
+) {
+
+    let minX =
+        Infinity;
+
+    let minY =
+        Infinity;
+
+    let maxX =
+        -Infinity;
+
+    let maxY =
+        -Infinity;
+
+
+    items.forEach(item => {
+
+        const transform =
+            pdfjsLib.Util.transform(
+                viewport.transform,
+                item.transform
+            );
+
+
+        const x =
+            transform[4];
+
+
+        const y =
+            transform[5];
+
+
+        const width =
+            item.width *
+            viewport.scale;
+
+
+        const height =
+            item.height *
+            viewport.scale;
+
+
+        minX =
+            Math.min(
+                minX,
+                x
+            );
+
+
+        minY =
+            Math.min(
+                minY,
+                y - height
+            );
+
+
+        maxX =
+            Math.max(
+                maxX,
+                x + width
+            );
+
+
+        maxY =
+            Math.max(
+                maxY,
+                y
+            );
+
+    });
+
+
+    return {
+
+        x:
+            Math.round(minX),
+
+        y:
+            Math.round(minY),
+
+        width:
+            Math.round(
+                maxX - minX
+            ),
+
+        height:
+            Math.round(
+                maxY - minY
+            )
+
+    };
+
+}
+
+
+/*
+=========================================================
+DRAW HIGHLIGHT
+=========================================================
+*/
+
+function drawHighlight(
+    coordinates,
+    pageContainer
+) {
+
+    const highlight =
+        document.createElement(
+            "div"
+        );
+
+
+    highlight.className =
+        "highlight";
+
+
+    highlight.style.left =
+        coordinates.x + "px";
+
+
+    highlight.style.top =
+        coordinates.y + "px";
+
+
+    highlight.style.width =
+        coordinates.width + "px";
+
+
+    highlight.style.height =
+        coordinates.height + "px";
+
+
+    pageContainer.appendChild(
+        highlight
+    );
+
+}
+
+
+/*
+=========================================================
+SEARCH BUTTON
+=========================================================
+*/
+
+document
+.getElementById("searchBtn")
+.addEventListener(
+    "click",
+    searchPhrase
+);
+
+
+/*
+=========================================================
+ENTER KEY
+=========================================================
+*/
+
+document
+.getElementById("phraseInput")
+.addEventListener(
+    "keydown",
+    event => {
+
+        if (
+            event.key === "Enter"
+        ) {
+
+            searchPhrase();
+
+        }
+
+    }
+);
+
+
+/*
+=========================================================
+START
+=========================================================
+*/
+
+loadPDF();
+
+</script>
+
+</body>
+</html>
