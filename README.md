@@ -1,2 +1,2 @@
 # gregg-phrases
-gregg phrases dictioanry
+gregg phrases dictionary
